@@ -545,6 +545,69 @@ class MatrixCollection(Sorn):
 
         return x_1, y_1
 
+class Neurogenesis(Plasticity):
+    """_summary_
+
+    Args:
+        Plasiticity (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+
+    def __init__(self):
+        super().__init__()
+
+    def excitatory_pool(self, wee, te):
+
+        # Add a neuron with random incoming and outgoing synapses in the exc pool
+        def sample_weights(self):
+             return np.random.uniform(0.0,0.1,Sorn.lambd_w)
+        def sample_indices(self, weights):
+            return random.sample(list(range(len(weights.shape[1]))),Sorn.lambd_w)
+
+        def update_outgoing_synapses(self,weights):
+
+            outgoing_synaptic_strengths = sample_weights()
+            indices = sample_indices(weights)
+
+            outgoing_synapses = np.zeros(len(weights.shape[1])+1)
+            for idx,w in zip(indices,outgoing_synaptic_strengths):
+                outgoing_synapses[idx] = w     
+            weights = numpy.vstack([weights, outgoing_synapses])
+
+            return weights
+
+        def update_incoming_synapses(self,weights):
+
+            incoming_synaptic_strengths = sample_weights()
+            indices = sample_indices(weights)
+            incoming_synapses = np.zeros(len(weights.shape[1]))
+            for idx,w in zip(indices,incoming_synaptic_strengths):
+                incoming_synapses[idx] = w     
+            weights = numpy.hstack([weights, incoming_synapses])
+
+        return weights
+
+        def update_threshold(self,te):
+            # Initial threshold value for the new neuron
+            return te.append(random.uniform(0.0,0.1,1))
+            
+        def excitatory_pool(self, wee, te):
+
+            # Add a neuron with random incoming and outgoing synapses in the exc pool
+            outgoing_weights = self.update_outgoing_synapses(wee)
+            incoming_weights = self.update_incoming_synapses(wee)
+            te = self.update_threshold(te)
+
+            return wee,te
+
+    def step(self, wee, wei, wie, te, ti):
+        
+        # Neurogenesis in the Excitatory pool
+
+        # Reset the number of inhibitory neurons in the pool
+        return NotImplementedError
 
 class NetworkState(Plasticity):
 
@@ -810,7 +873,7 @@ class Simulator_(Sorn):
         self.matrices = matrices
         self.freeze = [] if freeze == None else freeze
         self.callbacks = callbacks
-
+        self.add_neuron = False # At initial state
         kwargs_ = [
             "ne",
             "nu",
@@ -925,6 +988,17 @@ class Simulator_(Sorn):
                 Wei[i] = plasticity.istdp(
                     Wei[i], x_buffer, y_buffer, cutoff_weights=(0.0, 1.0)
                 )
+
+            # Neurogenesis
+
+            # Test condition for neurogenesis
+
+            # self.add_neuron = neurogenesis_test_condition()
+
+            if self.add_neuron:
+
+
+
 
             # Synaptic scaling Wee
             if "ss" not in self.freeze:
