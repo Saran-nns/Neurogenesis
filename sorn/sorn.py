@@ -558,56 +558,114 @@ class Neurogenesis(Plasticity):
     def __init__(self):
         super().__init__()
 
-    def excitatory_pool(self, wee, te):
+        def sample_weights(self, lambd=Sorn.lambd_w):
+            """_summary_
 
-        # Add a neuron with random incoming and outgoing synapses in the exc pool
-        def sample_weights(self):
-             return np.random.uniform(0.0,0.1,Sorn.lambd_w)
-        def sample_indices(self, weights):
-            return random.sample(list(range(len(weights.shape[1]))),Sorn.lambd_w)
+            Args:
+                lambd (_type_, optional): _description_. Defaults to Sorn.lambd_w.
 
-        def update_outgoing_synapses(self,weights):
+            Returns:
+                _type_: _description_
+            """
+            return np.random.uniform(0.0,0.1,lambd)
 
-            outgoing_synaptic_strengths = sample_weights()
-            indices = sample_indices(weights)
+        def sample_indices(self, weights, lambd=Sorn.lambd_w):
+            """_summary_
 
-            outgoing_synapses = np.zeros(len(weights.shape[1])+1)
-            for idx,w in zip(indices,outgoing_synaptic_strengths):
-                outgoing_synapses[idx] = w     
-            weights = numpy.vstack([weights, outgoing_synapses])
+            Args:
+                weights (_type_): _description_
+                lambd (_type_, optional): _description_. Defaults to Sorn.lambd_w.
 
-            return weights
+            Returns:
+                _type_: _description_
+            """
+            return random.sample(list(range(len(weights.shape[1]))),lambd)
 
-        def update_incoming_synapses(self,weights):
+    def excitatory(self, weights):
+        """Add a neuron with random incoming and outgoing synapses in the exc pool
 
-            incoming_synaptic_strengths = sample_weights()
-            indices = sample_indices(weights)
-            incoming_synapses = np.zeros(len(weights.shape[1]))
-            for idx,w in zip(indices,incoming_synaptic_strengths):
-                incoming_synapses[idx] = w     
-            weights = numpy.hstack([weights, incoming_synapses])
+        Args:
+            weights (_type_): _description_
 
-        return weights
+        Returns:
+            _type_: _description_
+        """
 
-        def update_threshold(self,te):
-            # Initial threshold value for the new neuron
-            return te.append(random.uniform(0.0,0.1,1))
-            
-        def excitatory_pool(self, wee, te):
+        # Choose incoming and outgoing synapses randomly
+        out_indices = self.sample_indices(weights) 
+        in_indices = self.sample_indices(weights)
 
-            # Add a neuron with random incoming and outgoing synapses in the exc pool
-            outgoing_weights = self.update_outgoing_synapses(wee)
-            incoming_weights = self.update_incoming_synapses(wee)
-            te = self.update_threshold(te)
-
-            return wee,te
-
-    def step(self, wee, wei, wie, te, ti):
+        # Sample incoming and outgoing synaptic weights
+        outgoing_synapses = self.sample_weights()
+        incoming_synapses = self.sample_weights()
         
-        # Neurogenesis in the Excitatory pool
+        # Apppend additional rows (outgoing synapses) and cols (incoming) 
+        temp = np.zeros((np.array(weights.shape))+1)
+        
+        # Update outgoing synapses
+        for out_idx,w in zip(out_indices,outgoing_synapses):
+            temp[-1][out_idx] = w
 
-        # Reset the number of inhibitory neurons in the pool
-        return NotImplementedError
+        # Update incoming synapses
+        for in_idx,w in zip(in_indices,incoming_synapses):
+            temp[in_idx][-1] = w  
+
+        return weights+temp
+
+    def update_threshold(self, thresh):
+        """_summary_
+
+        Args:
+            thresh (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
+        # Initial threshold value for the new neuron
+        return thresh.append(random.uniform(0.0,0.1,1))
+        
+    def inhibitory(self, wei, wie):
+
+        """Update EI and IE synapses during inhibitory neurogenesis
+
+        Returns:
+            _type_: _description_
+        """
+
+        # Choose incoming inhibitory and outgoing excitatory synapses randomly
+        inh_out_indices = self.sample_indices(wei,40) # I->E Sparse
+        inh_in_indices =  list(range(len(wie.shape[1])))# E->I Dense
+
+        # Sample outgoing inhibitory synapses and outgoing excitatory synapses
+        out_synapses = self.sample_weights(lambd=int(0.4*wei.shape[0]*wei.shape[1])) # 40% dense connections. I-> E Eg. Wei.shape=[40,200] 
+        in_synapses = np.random.uniform(0.0,0.1, weights.shape[1])   # E->I Eg. Wie.shape = [200,40] 
+        
+        # Apppend additional rows (outgoing synapses) and cols (incoming)
+        temp_ei = np.zeros((wei.shape[0]+1, wei.shape[1])) # [41,200]
+        temp_ie = np.zeros((wie.shape[0], wie.shape[1]+1)) # [200,41]
+        
+        # Update outgoing synapses Wei: sparse inh -> exc synapse
+        for out_idx,w in zip(out_indices,out_synapses):
+            temp_ei[-1][out_idx] = w
+
+        # Update incoming synapses Wie: Dense exc -> inh synapse
+        for in_idx,w in zip(in_indices,in_synapses):
+            temp_ie[in_idx][-1] = w    
+
+        return temp_ei, temp_ie
+
+    def step(self, wee, wei, wie, te, ti, ne_prev):
+        
+        # Neurogenesis in the excitatory pool
+        wee = self.excitatory(weights=wee)
+        te = self.update_threshold(thresh=te)
+
+        # Check neurogenesis at inhibitory pool 
+        if (ne_prev<wee.shape[0]) and (wee.shape[0]%5==0):
+            wei,wie = self.inhibitory(wei,wie)
+            ti = self.update_threshold(ti)
+
+        return wee, wei, wie, te, ti
 
 class NetworkState(Plasticity):
 
