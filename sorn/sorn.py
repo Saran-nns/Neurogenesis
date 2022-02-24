@@ -545,6 +545,7 @@ class MatrixCollection(Sorn):
 
         return x_1, y_1
 
+
 class Neurogenesis(Plasticity):
     """_summary_
 
@@ -558,28 +559,28 @@ class Neurogenesis(Plasticity):
     def __init__(self):
         super().__init__()
 
-        def sample_weights(self, lambd=Sorn.lambd_w):
-            """_summary_
+    def sample_weights(self, lambd=Sorn.lambd_w):
+        """_summary_
 
-            Args:
-                lambd (_type_, optional): _description_. Defaults to Sorn.lambd_w.
+        Args:
+            lambd (_type_, optional): _description_. Defaults to Sorn.lambd_w.
 
-            Returns:
-                _type_: _description_
-            """
-            return np.random.uniform(0.0,0.1,lambd)
+        Returns:
+            _type_: _description_
+        """
+        return np.random.uniform(0.0, 0.1, lambd)
 
-        def sample_indices(self, weights, lambd=Sorn.lambd_w):
-            """_summary_
+    def sample_indices(self, weights, lambd=Sorn.lambd_w):
+        """_summary_
 
-            Args:
-                weights (_type_): _description_
-                lambd (_type_, optional): _description_. Defaults to Sorn.lambd_w.
+        Args:
+            weights (_type_): _description_
+            lambd (_type_, optional): _description_. Defaults to Sorn.lambd_w.
 
-            Returns:
-                _type_: _description_
-            """
-            return random.sample(list(range(len(weights.shape[1]))),lambd)
+        Returns:
+            _type_: _description_
+        """
+        return random.sample(list(range(len(weights.shape[1]))), lambd)
 
     def excitatory(self, weights):
         """Add a neuron with random incoming and outgoing synapses in the exc pool
@@ -592,25 +593,25 @@ class Neurogenesis(Plasticity):
         """
 
         # Choose incoming and outgoing synapses randomly
-        out_indices = self.sample_indices(weights) 
+        out_indices = self.sample_indices(weights)
         in_indices = self.sample_indices(weights)
 
         # Sample incoming and outgoing synaptic weights
         outgoing_synapses = self.sample_weights()
         incoming_synapses = self.sample_weights()
-        
-        # Apppend additional rows (outgoing synapses) and cols (incoming) 
-        temp = np.zeros((np.array(weights.shape))+1)
-        
+
+        # Apppend additional rows (outgoing synapses) and cols (incoming)
+        temp = np.zeros((np.array(weights.shape)) + 1)
+
         # Update outgoing synapses
-        for out_idx,w in zip(out_indices,outgoing_synapses):
+        for out_idx, w in zip(out_indices, outgoing_synapses):
             temp[-1][out_idx] = w
 
         # Update incoming synapses
-        for in_idx,w in zip(in_indices,incoming_synapses):
-            temp[in_idx][-1] = w  
+        for in_idx, w in zip(in_indices, incoming_synapses):
+            temp[in_idx][-1] = w
 
-        return weights+temp
+        return weights + temp
 
     def update_threshold(self, thresh):
         """_summary_
@@ -622,8 +623,8 @@ class Neurogenesis(Plasticity):
             _type_: _description_
         """
         # Initial threshold value for the new neuron
-        return thresh.append(random.uniform(0.0,0.1,1))
-        
+        return thresh.append(random.uniform(0.0, 0.1, 1))
+
     def inhibitory(self, wei, wie):
 
         """Update EI and IE synapses during inhibitory neurogenesis
@@ -633,39 +634,44 @@ class Neurogenesis(Plasticity):
         """
 
         # Choose incoming inhibitory and outgoing excitatory synapses randomly
-        inh_out_indices = self.sample_indices(wei,40) # I->E Sparse
-        inh_in_indices =  list(range(len(wie.shape[1])))# E->I Dense
+        out_indices = self.sample_indices(wei, 40)  # I->E Sparse
+        in_indices = list(range(len(wie.shape[1])))  # E->I Dense
 
         # Sample outgoing inhibitory synapses and outgoing excitatory synapses
-        out_synapses = self.sample_weights(lambd=int(0.4*wei.shape[0]*wei.shape[1])) # 40% dense connections. I-> E Eg. Wei.shape=[40,200] 
-        in_synapses = np.random.uniform(0.0,0.1, weights.shape[1])   # E->I Eg. Wie.shape = [200,40] 
-        
+        out_synapses = self.sample_weights(
+            lambd=int(0.4 * wei.shape[0] * wei.shape[1])
+        )  # 40% dense connections. I-> E Eg. Wei.shape=[40,200]
+        in_synapses = np.random.uniform(
+            0.0, 0.1, weights.shape[1]
+        )  # E->I Eg. Wie.shape = [200,40]
+
         # Apppend additional rows (outgoing synapses) and cols (incoming)
-        temp_ei = np.zeros((wei.shape[0]+1, wei.shape[1])) # [41,200]
-        temp_ie = np.zeros((wie.shape[0], wie.shape[1]+1)) # [200,41]
-        
+        temp_ei = np.zeros((wei.shape[0] + 1, wei.shape[1]))  # [41,200]
+        temp_ie = np.zeros((wie.shape[0], wie.shape[1] + 1))  # [200,41]
+
         # Update outgoing synapses Wei: sparse inh -> exc synapse
-        for out_idx,w in zip(out_indices,out_synapses):
+        for out_idx, w in zip(out_indices, out_synapses):
             temp_ei[-1][out_idx] = w
 
         # Update incoming synapses Wie: Dense exc -> inh synapse
-        for in_idx,w in zip(in_indices,in_synapses):
-            temp_ie[in_idx][-1] = w    
+        for in_idx, w in zip(in_indices, in_synapses):
+            temp_ie[in_idx][-1] = w
 
         return temp_ei, temp_ie
 
     def step(self, wee, wei, wie, te, ti, ne_prev):
-        
+
         # Neurogenesis in the excitatory pool
         wee = self.excitatory(weights=wee)
         te = self.update_threshold(thresh=te)
 
-        # Check neurogenesis at inhibitory pool 
-        if (ne_prev<wee.shape[0]) and (wee.shape[0]%5==0):
-            wei,wie = self.inhibitory(wei,wie)
+        # Check neurogenesis at inhibitory pool
+        if (ne_prev < wee.shape[0]) and (wee.shape[0] % 5 == 0):
+            wei, wie = self.inhibitory(wei, wie)
             ti = self.update_threshold(ti)
 
         return wee, wei, wie, te, ti
+
 
 class NetworkState(Plasticity):
 
@@ -931,7 +937,8 @@ class Simulator_(Sorn):
         self.matrices = matrices
         self.freeze = [] if freeze == None else freeze
         self.callbacks = callbacks
-        self.add_neuron = False # At initial state
+        self.add_neuron = False  # At initial state
+        self.ne_prev = Sorn.ne
         kwargs_ = [
             "ne",
             "nu",
@@ -1049,14 +1056,13 @@ class Simulator_(Sorn):
 
             # Neurogenesis
 
-            # Test condition for neurogenesis
+            # TODO: Test condition for neurogenesis
+            neurogenesis = Neurogenesis()
+            wee, wei, wie, te, ti = neurogenesis.step(
+                wee=wee, wei=wei, wie=wie, te=te, ti=ti, ne_prev=self.ne_prev
+            )
 
-            # self.add_neuron = neurogenesis_test_condition()
-
-            if self.add_neuron:
-
-
-
+            self.ne_prev = wee.shape[1]
 
             # Synaptic scaling Wee
             if "ss" not in self.freeze:
