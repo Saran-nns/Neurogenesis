@@ -28,11 +28,8 @@ import logging
 from multiprocessing import Pool
 
 from sorn.callbacks import *
+from sorn.utils import Initializer
 
-try:
-    from sorn.utils import Initializer
-except:
-    from utils import Initializer
 
 logging.basicConfig(
     level=logging.INFO,
@@ -901,6 +898,7 @@ class Simulator_(Sorn):
         timesteps: int = None,
         noise: bool = True,
         freeze: list = None,
+        neurogenesis: bool = True,
         callbacks: list = [],
         **kwargs,
     ):
@@ -918,6 +916,8 @@ class Simulator_(Sorn):
             noise(bool, optional): If True, noise will be added. Defaults to True.
 
             freeze(list, optional): List of synaptic plasticity mechanisms which will be turned off during simulation. Defaults to None.
+
+            neurogenesis(bool, optional): If True, new neurons will be added based on certain conditions. Defaults to True
 
             callbacks(list, optional): Requested values from ["ExcitatoryActivation", "InhibitoryActivation",
                                                             "RecurrentActivation", "WEE", "WEI", "TE", "EEConnectionCounts"] collected and returned from the simulate sorn object.
@@ -937,7 +937,7 @@ class Simulator_(Sorn):
         self.matrices = matrices
         self.freeze = [] if freeze == None else freeze
         self.callbacks = callbacks
-        self.add_neuron = False  # At initial state
+        self.neurogenesis = neurogenesis
         self.ne_prev = Sorn.ne
         kwargs_ = [
             "ne",
@@ -1055,14 +1055,20 @@ class Simulator_(Sorn):
                 )
 
             # Neurogenesis
+            if self.neurogenesis:
 
-            # TODO: Test condition for neurogenesis
-            neurogenesis = Neurogenesis()
-            wee, wei, wie, te, ti = neurogenesis.step(
-                wee=wee, wei=wei, wie=wie, te=te, ti=ti, ne_prev=self.ne_prev
-            )
+                # TODO: Test condition for neurogenesis
+                neurogenesis = Neurogenesis()
+                Wee[i], Wei[i], Wie[i], Te[i], Ti[i] = neurogenesis.step(
+                    wee=Wee[i],
+                    wei=Wei[i],
+                    wie=Wie[i],
+                    te=Te[i],
+                    ti=Ti[i],
+                    ne_prev=self.ne_prev,
+                )
 
-            self.ne_prev = wee.shape[1]
+                self.ne_prev = Wee[i].shape[1]
 
             # Synaptic scaling Wee
             if "ss" not in self.freeze:
