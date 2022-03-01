@@ -556,7 +556,7 @@ class Neurogenesis(Plasticity):
     def __init__(self):
         super().__init__()
 
-    def sample_weights(self, lambd=Sorn.lambd_w):
+    def sample_weights(self, lambd=Sorn.lambda_ee):
         """_summary_
 
         Args:
@@ -567,7 +567,7 @@ class Neurogenesis(Plasticity):
         """
         return np.random.uniform(0.0, 0.1, lambd)
 
-    def sample_indices(self, weights, lambd=Sorn.lambd_w):
+    def sample_indices(self, weights, lambd=Sorn.lambda_ee):
         """_summary_
 
         Args:
@@ -577,7 +577,7 @@ class Neurogenesis(Plasticity):
         Returns:
             _type_: _description_
         """
-        return random.sample(list(range(len(weights.shape[1]))), lambd)
+        return random.sample(list(range(weights.shape[1])), lambd)
 
     def excitatory(self, weights):
         """Add a neuron with random incoming and outgoing synapses in the exc pool
@@ -598,7 +598,8 @@ class Neurogenesis(Plasticity):
         incoming_synapses = self.sample_weights()
 
         # Apppend additional rows (outgoing synapses) and cols (incoming)
-        temp = np.zeros((np.array(weights.shape)) + 1)
+        temp = np.zeros(np.array(weights.shape))
+        temp[: weights.shape[0], : weights.shape[1]] = weights  # Padding
 
         # Update outgoing synapses
         for out_idx, w in zip(out_indices, outgoing_synapses):
@@ -608,7 +609,7 @@ class Neurogenesis(Plasticity):
         for in_idx, w in zip(in_indices, incoming_synapses):
             temp[in_idx][-1] = w
 
-        return weights + temp
+        return temp
 
     def update_threshold(self, thresh):
         """_summary_
@@ -620,7 +621,10 @@ class Neurogenesis(Plasticity):
             _type_: _description_
         """
         # Initial threshold value for the new neuron
-        return thresh.append(random.uniform(0.0, 0.1, 1))
+        print(thresh.shape)
+        thresh = np.append(thresh, random.uniform(0.0, 0.1))[:, None]
+        print(thresh.shape)
+        return thresh
 
     def inhibitory(self, wei, wie):
 
