@@ -834,7 +834,12 @@ class NetworkState(Plasticity):
         incoming_drive_i = np.expand_dims(
             self.incoming_drive(weights=wei, activity_vector=yt), 1
         )
-
+        print(
+            incoming_drive_e.shape,
+            incoming_drive_i.shape,
+            white_noise_e.shape,
+            te.shape,
+        )
         tot_incoming_drive = incoming_drive_e - incoming_drive_i + white_noise_e - te
 
         heaviside_step = np.expand_dims([0.0] * len(tot_incoming_drive), 1)
@@ -987,21 +992,6 @@ class Simulator_(Sorn):
         # To get the last activation status of Exc and Inh neurons
         for i in range(self.timesteps):
 
-            if noise:
-                white_noise_e = Initializer.white_gaussian_noise(
-                    mu=0.0, sigma=0.04, t=Sorn.ne
-                )
-                white_noise_i = Initializer.white_gaussian_noise(
-                    mu=0.0, sigma=0.04, t=Sorn.ni
-                )
-            else:
-                white_noise_e, white_noise_i = 0.0, 0.0
-
-            network_state = NetworkState(inputs[:, i])
-
-            # Buffers to get the resulting x and y vectors at the current time step and update the master matrix
-            x_buffer, y_buffer = np.zeros((Sorn.ne, 2)), np.zeros((Sorn.ni, 2))
-
             Wee, Wei, Wie = (
                 matrix_collection.Wee,
                 matrix_collection.Wei,
@@ -1010,9 +1000,26 @@ class Simulator_(Sorn):
             Te, Ti = matrix_collection.Te, matrix_collection.Ti
             X, Y = matrix_collection.X, matrix_collection.Y
 
+            network_state = NetworkState(inputs[:, i])
+
+            # Buffers to get the resulting x and y vectors at the current time step and update the master matrix
+            x_buffer, y_buffer = np.zeros((Wee[i].shape[0], 2)), np.zeros(
+                (Wei[i].shape[0], 2)
+            )
+
             # Fraction of active connections between E-E and E-I networks
             ei_conn = (Wei[i] > 0.0).sum()
             ee_conn = (Wee[i] > 0.0).sum()
+
+            if noise:
+                white_noise_e = Initializer.white_gaussian_noise(
+                    mu=0.0, sigma=0.04, t=Wee[i].shape[0]
+                )
+                white_noise_i = Initializer.white_gaussian_noise(
+                    mu=0.0, sigma=0.04, t=Wei[i].shape[0]
+                )
+            else:
+                white_noise_e, white_noise_i = 0.0, 0.0
 
             # Recurrent drive
             r = network_state.recurrent_drive(
@@ -1072,7 +1079,7 @@ class Simulator_(Sorn):
                     ne_prev=self.ne_prev,
                 )
 
-                self.ne_prev = Wee[i].shape[1]
+            self.ne_prev = Wee[i].shape[1]
 
             # Synaptic scaling Wee
             if "ss" not in self.freeze:
