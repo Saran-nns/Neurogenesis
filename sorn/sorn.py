@@ -635,7 +635,7 @@ class Neurogenesis(Plasticity):
         """
 
         # Choose incoming inhibitory and outgoing excitatory synapses randomly
-        out_indices = self.sample_indices(wei, 40)  # I->E Sparse
+        out_indices = self.sample_indices(wei, Sorn.lambda_ei)  # I->E Sparse
         in_indices = list(range(len(wie.shape[1])))  # E->I Dense
 
         # Sample outgoing inhibitory synapses and outgoing excitatory synapses
@@ -670,7 +670,11 @@ class Neurogenesis(Plasticity):
         if (ne_prev < wee.shape[0]) and (wee.shape[0] % 5 == 0):
             wei, wie = self.inhibitory(wei, wie)
             ti = self.update_threshold(ti)
-
+        print(
+            wee.shape,
+            wei.shape,
+            wie.shape,
+        )
         return wee, wei, wie, te, ti
 
 
