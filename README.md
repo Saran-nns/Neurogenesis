@@ -17,4 +17,6 @@ PFC and hippocampus communicate bidirectionally through oscillatory synchrony.
 
 3. MEMORY CAPACITY OF NEURAL NETWORKS WITH THRESHOLD AND RELU ACTIVATIONS https://arxiv.org/pdf/2001.06938.pdf
 
+4. Optimal modularity and memory capacity of neural reservoirs https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6497001/
+
 
