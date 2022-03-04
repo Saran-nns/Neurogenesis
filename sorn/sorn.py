@@ -594,11 +594,11 @@ class Neurogenesis(Plasticity):
         in_indices = self.sample_indices(weights)
 
         # Sample incoming and outgoing synaptic weights
-        outgoing_synapses = self.sample_weights()
-        incoming_synapses = self.sample_weights()
+        outgoing_synapses = self.sample_weights(Sorn.lambda_ee)
+        incoming_synapses = self.sample_weights(Sorn.lambda_ee)
 
         # Apppend additional rows (outgoing synapses) and cols (incoming)
-        temp = np.zeros(np.array(weights.shape))
+        temp = np.zeros(np.array(weights.shape) + 1)
         temp[: weights.shape[0], : weights.shape[1]] = weights  # Padding
 
         # Update outgoing synapses
@@ -608,7 +608,7 @@ class Neurogenesis(Plasticity):
         # Update incoming synapses
         for in_idx, w in zip(in_indices, incoming_synapses):
             temp[in_idx][-1] = w
-
+        print(temp.shape)
         return temp
 
     def update_threshold(self, thresh):
@@ -621,9 +621,7 @@ class Neurogenesis(Plasticity):
             _type_: _description_
         """
         # Initial threshold value for the new neuron
-        print(thresh.shape)
         thresh = np.append(thresh, random.uniform(0.0, 0.1))[:, None]
-        print(thresh.shape)
         return thresh
 
     def inhibitory(self, wei, wie):
@@ -643,7 +641,7 @@ class Neurogenesis(Plasticity):
             lambd=int(0.4 * wei.shape[0] * wei.shape[1])
         )  # 40% dense connections. I-> E Eg. Wei.shape=[40,200]
         in_synapses = np.random.uniform(
-            0.0, 0.1, weights.shape[1]
+            0.0, 0.1, wei.shape[1]
         )  # E->I Eg. Wie.shape = [200,40]
 
         # Apppend additional rows (outgoing synapses) and cols (incoming)
@@ -670,11 +668,7 @@ class Neurogenesis(Plasticity):
         if (ne_prev < wee.shape[0]) and (wee.shape[0] % 5 == 0):
             wei, wie = self.inhibitory(wei, wie)
             ti = self.update_threshold(ti)
-        print(
-            wee.shape,
-            wei.shape,
-            wie.shape,
-        )
+
         return wee, wei, wie, te, ti
 
 
@@ -742,10 +736,8 @@ class NetworkState(Plasticity):
         Returns:
             x(array): Current Excitatory network activity
         """
-        xt = x[:, 1]
-        xt = xt.reshape(self.ne, 1)
-        yt = y[:, 1]
-        yt = yt.reshape(self.ni, 1)
+        xt = x[:, 1][:, None]
+        yt = y[:, 1][:, None]
 
         incoming_drive_e = np.expand_dims(
             self.incoming_drive(weights=wee, activity_vector=xt), 1
@@ -786,9 +778,7 @@ class NetworkState(Plasticity):
             y(array): Current Inhibitory network activity"""
 
         wie = np.asarray(wie)
-        yt = y[:, 1]
-        yt = yt.reshape(Sorn.ne, 1)
-
+        yt = y[:, 1][:, None]
         incoming_drive_e = np.expand_dims(
             self.incoming_drive(weights=wie, activity_vector=yt), 1
         )
@@ -827,10 +817,8 @@ class NetworkState(Plasticity):
         Returns:
             xt(array): Recurrent network state
         """
-        xt = x[:, 1]
-        xt = xt.reshape(self.ne, 1)
-        yt = y[:, 1]
-        yt = yt.reshape(self.ni, 1)
+        xt = x[:, 1][:, None]
+        yt = y[:, 1][:, None]
 
         incoming_drive_e = np.expand_dims(
             self.incoming_drive(weights=wee, activity_vector=xt), 1
@@ -951,7 +939,6 @@ class Simulator_(Sorn):
         self.freeze = [] if freeze == None else freeze
         self.callbacks = callbacks
         self.neurogenesis = neurogenesis
-        self.ne_prev = Sorn.ne
         kwargs_ = [
             "ne",
             "nu",
@@ -1074,16 +1061,27 @@ class Simulator_(Sorn):
 
                 # TODO: Test condition for neurogenesis
                 neurogenesis = Neurogenesis()
-                Wee[i], Wei[i], Wie[i], Te[i], Ti[i] = neurogenesis.step(
+
+                # Set initial state of new exc neuron
+                x_temp = np.zeros(np.array(x_buffer.shape) + 1)
+                x_temp[: x_buffer.shape[0], : x_buffer.shape[1]] = x_buffer
+                x_buffer = x_temp.copy()
+                # Check neurogenesis at inhibitory pool and set initial state of new inh neuron
+                if Sorn.ne % 5 == 0:  # 20% of ne
+                    y_temp = np.zeros(np.array(y_buffer.shape) + 1)
+                    y_temp[: y_buffer.shape[0], : y_buffer.shape[1]] = y_buffer
+                    y_buffer = y_temp.copy()
+
+                (Wee[i], Wei[i], Wie[i], Te[i], Ti[i],) = neurogenesis.step(
                     wee=Wee[i],
                     wei=Wei[i],
                     wie=Wie[i],
                     te=Te[i],
                     ti=Ti[i],
-                    ne_prev=self.ne_prev,
+                    ne_prev=Sorn.ne,
                 )
 
-            self.ne_prev = Wee[i].shape[1]
+            Sorn.ne = Wee[i].shape[0]
 
             # Synaptic scaling Wee
             if "ss" not in self.freeze:
