@@ -15,3 +15,6 @@ Relevant articles:
 2. Prefrontal–hippocampal interactions in episodic memory https://www.nature.com/articles/nrn.2017.74#:~:text=Key%20Points,interact%20bidirectionally%20through%20oscillatory%20synchrony.
 PFC and hippocampus communicate bidirectionally through oscillatory synchrony.
 
+3. MEMORY CAPACITY OF NEURAL NETWORKS WITH THRESHOLD AND RELU ACTIVATIONS https://arxiv.org/pdf/2001.06938.pdf
+
+
