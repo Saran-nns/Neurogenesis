@@ -19,4 +19,7 @@ PFC and hippocampus communicate bidirectionally through oscillatory synchrony.
 
 4. Optimal modularity and memory capacity of neural reservoirs https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6497001/
 
+5. Current understanding of adult neurogenesis in the mammalian brain: how does adult neurogenesis decrease with age?https://inflammregen.biomedcentral.com/articles/10.1186/s41232-020-00122-x
+
+The attenuation of neurogenesis in the mouse SGZ has been reported to result in the impairment of new memory formation. These new neurons are also important for the formation of spatial memories. Furthermore, new integrated neurons in the DG have the function of organizing past memories and alleviating the stress response 
 
