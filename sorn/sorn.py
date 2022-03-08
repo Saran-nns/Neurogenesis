@@ -553,8 +553,10 @@ class Neurogenesis(Plasticity):
         _type_: _description_
     """
 
-    def __init__(self):
+    def __init__(self, excitatory, inhibitory):
         super().__init__()
+        self.excitatory_neurogenesis = excitatory
+        self.inhibitory_neurogenesis = inhibitory
 
     def sample_weights(self, lambd=Sorn.lambda_ee):
         """_summary_
@@ -567,7 +569,7 @@ class Neurogenesis(Plasticity):
         """
         return np.random.uniform(0.0, 0.1, lambd)
 
-    def sample_indices(self, weights, lambd=Sorn.lambda_ee):
+    def sample_indices(self, weights, synapse="ee", lambd=Sorn.lambda_ee):
         """_summary_
 
         Args:
@@ -577,9 +579,25 @@ class Neurogenesis(Plasticity):
         Returns:
             _type_: _description_
         """
-        return random.sample(list(range(weights.shape[1])), lambd)
 
-    def excitatory(self, wee, wei):
+        if self.excitatory_neurogenesis:
+            if synapse == "ee":
+                indices = random.sample(list(range(weights.shape[1])), lambd)
+            elif synapse == "ei":
+                indices = random.sample(list(range(weights.shape[0])), lambd)
+            else:
+                # synapse == "ie":
+                indices = random.sample(list(range(weights.shape[0])), lambd)
+
+        if self.inhibitory_neurogenesis:
+            if synapse == "ei":
+                indices = random.sample(list(range(weights.shape[1])), lambd)
+            else:
+                # synapse == "ie":
+                indices = random.sample(list(range(weights.shape[0])), lambd)
+        return indices
+
+    def excitatory(self, wee, wei, wie):
         """Add a neuron with random incoming and outgoing synapses in the exc pool
 
         Args:
@@ -590,49 +608,53 @@ class Neurogenesis(Plasticity):
         """
         # Excitatory pool
         # Choose incoming and outgoing synapses randomly
-        eff_idxs_exc = self.sample_indices(wee)
-        aff_idxs_exc = self.sample_indices(wee)
+        eff_idxs_exc = self.sample_indices(wee, synapse="ee", lambd=Sorn.lambda_ee)
+        aff_idxs_exc = self.sample_indices(wee, synapse="ee", lambd=Sorn.lambda_ee)
         # Sample incoming and outgoing synaptic weights
         eff_synapses = self.sample_weights(Sorn.lambda_ee)
         aff_synapses = self.sample_weights(Sorn.lambda_ee)
+
         # Apppend additional rows (outgoing synapses) and cols (incoming)
         temp_ee = np.zeros(np.array(wee.shape) + 1)
         temp_ee[: wee.shape[0], : wee.shape[1]] = wee  # Padding
         # Update outgoing synapses
         for eff_idx, w in zip(eff_idxs_exc, eff_synapses):
-            temp_ee[-1][out_idx] = w
-
+            temp_ee[-1][eff_idxs_exc] = w
         # Update incoming synapses
         for aff_idx, w in zip(aff_idxs_exc, aff_synapses):
             temp_ee[aff_idx][-1] = w
 
         # Afferent inhibitory connections to the neuron
-        aff_idxs_inh = self.sample_indices(wei, Sorn.lambda_ei)
+        print(wei.shape)
+        aff_idxs_inh = self.sample_indices(wei, synapse="ei", lambd=Sorn.lambda_ei)
+        assert (
+            max(aff_idxs_inh) < Sorn.ne
+        ), f"Max afferent inhibitory index is {max(aff_idxs_inh)}"
 
-        # Sample outgoing inhibitory synapses and outgoing excitatory synapses
-        aff_inh_synapses = self.sample_weights(
-            lambd=int(0.4 * wei.shape[0] * wei.shape[1])
+        aff_synapses_inh = self.sample_weights(
+            lambd=len(aff_idxs_inh)
         )  # 40% connectivity. I-> E Eg. Wei.shape=[40,200]
-        temp_ei = np.zeros((wei.shape[0], wei.shape[1]) + 1)  # [40,201]
+        assert len(aff_idxs_inh) == len(aff_synapses_inh), "Synapses size mismatch"
 
+        temp_ei = np.zeros((wei.shape[0], wei.shape[1] + 1))  # [40,201]
+        temp_ei[: wei.shape[0], : wei.shape[1]] = wei  # Padding
         # Update outgoing synapses Wei: sparse inh -> exc synapse
-        for aff_idx, w in zip(aff_idxs_inh, aff_inh_synapses):
-            temp_ei[aff_idx][-1] = w
+        temp_ei[:, -1] = aff_synapses_inh
 
-        #### Excitatory --> Inhibitory ####
+        # Excitatory --> Inhibitory
 
         # Efferent connections to Inhibitory Pool
-        aff_idxs_inh = self.sample_indices(wie, Sorn.lambda_ie)
+        eff_idxs_inh = self.sample_indices(wie, synapse="ie", lambd=Sorn.lambda_ie)
+        assert max(eff_idxs_inh) < Sorn.ne
 
         # Sample outgoing inhibitory synapses and outgoing excitatory synapses
-        aff_inh_synapses = self.sample_weights(
-            lambd=int(0.4 * wie.shape[0] * wie.shape[1])
-        )  # 40% connectivity. I-> E Eg. Wei.shape=[40,200]
-        temp_ie = np.zeros((wie.shape[0], wie.shape[1]) + 1)  # [40,201]
-
+        eff_synapses_inh = self.sample_weights(
+            lambd=len(eff_idxs_inh)
+        )  # 100% connectivity. E-> I Eg. Wie.shape=[200,40]
+        temp_ie = np.zeros((wie.shape[0] + 1, wie.shape[1]))  # [201,40]
+        temp_ie[: wie.shape[0], : wie.shape[1]] = wie  # Padding
         # Update outgoing synapses Wei: sparse inh -> exc synapse
-        for aff_idx, w in zip(aff_idxs_inh, aff_inh_synapses):
-            temp_ie[out_idx][-1] = w
+        temp_ie[-1] = eff_synapses_inh
 
         return temp_ee, temp_ei, temp_ie
 
@@ -683,18 +705,33 @@ class Neurogenesis(Plasticity):
 
         return temp_ei, temp_ie
 
-    def step(self, wee, wei, wie, te, ti, ne_prev):
+    def step(self, exc_pool, inh_pool, x_buffer, y_buffer, wee, wei, wie, te, ti):
 
-        # Neurogenesis in the excitatory pool
-        wee = self.excitatory(weights=wee)
-        te = self.set_threshold(thresh=te)
+        if exc_pool:
+            self.excitatory_neurogenesis = exc_pool
+            # Set initial state of new exc neuron
+            x_temp = np.zeros(np.array(x_buffer.shape) + 1)
+            x_temp[: x_buffer.shape[0], : x_buffer.shape[1]] = x_buffer
+            x_buffer = x_temp.copy()
 
-        # Check neurogenesis at inhibitory pool
-        if (ne_prev < wee.shape[0]) and (wee.shape[0] % 5 == 0):
+            # Set efferent and afferent synapses and threshold
+            wee, wei, wie = self.excitatory(wee, wei, wie)
+            te = self.set_threshold(thresh=te)
+            print("$$$$$$", wee.shape, wie.shape, wei.shape, te.shape)
+
+        if inh_pool:
+            self.inhibitory_neurogenesis = inh_pool
+
+            # Set initial state of new inh neuron
+            y_temp = np.zeros(np.array(y_buffer.shape) + 1)
+            y_temp[: y_buffer.shape[0], : y_buffer.shape[1]] = y_buffer
+            y_buffer = y_temp.copy()
+
+            # Set efferent and afferent synapses and threshold
             wei, wie = self.inhibitory(wei, wie)
             ti = self.set_threshold(ti)
 
-        return wee, wei, wie, te, ti
+        return x_buffer, y_buffer, wee, wei, wie, te, ti
 
 
 class NetworkState(Plasticity):
@@ -848,17 +885,11 @@ class NetworkState(Plasticity):
         incoming_drive_e = np.expand_dims(
             self.incoming_drive(weights=wee, activity_vector=xt), 1
         )
-        print("$$$$$$$", wee.shape, wei.shape)
 
         incoming_drive_i = np.expand_dims(
             self.incoming_drive(weights=wei, activity_vector=yt), 1
         )
-        print(
-            incoming_drive_e.shape,
-            incoming_drive_i.shape,
-            white_noise_e.shape,
-            te.shape,
-        )
+
         tot_incoming_drive = incoming_drive_e - incoming_drive_i + white_noise_e - te
 
         heaviside_step = np.expand_dims([0.0] * len(tot_incoming_drive), 1)
@@ -965,7 +996,10 @@ class Simulator_(Sorn):
         self.matrices = matrices
         self.freeze = [] if freeze == None else freeze
         self.callbacks = callbacks
-        self.neurogenesis = neurogenesis
+        self.exc_genesis = True
+        self.inh_genesis = True
+        self.ne_init = Sorn.ne
+
         kwargs_ = [
             "ne",
             "nu",
@@ -989,7 +1023,7 @@ class Simulator_(Sorn):
             if key in kwargs_:
                 setattr(Sorn, key, value)
         Sorn.ni = int(0.2 * Sorn.ne)
-        neurogenesis = Neurogenesis()
+
         plasticity = Plasticity()
         # Initialize/Get the weight, threshold matrices and activity vectors
         matrix_collection = MatrixCollection(phase=self.phase, matrices=self.matrices)
@@ -1083,28 +1117,35 @@ class Simulator_(Sorn):
                     Wei[i], x_buffer, y_buffer, cutoff_weights=(0.0, 1.0)
                 )
 
-            # Neurogenesis
-            if self.neurogenesis:
+            # TODO: Test condition for neurogenesis
+            # If the conditions are true then set VARIABLES exc_pool True
+            self.exc_genesis = True
 
-                # TODO: Test condition for neurogenesis
+            if (Sorn.ne > self.ne_init) and (Sorn.ne % 5 == 0):
+                self.inh_genesis = True
+            neurogenesis = Neurogenesis(
+                excitatory=self.exc_genesis, inhibitory=self.inh_genesis
+            )
+            if self.exc_genesis or self.inh_genesis:
 
-                # Set initial state of new exc neuron
-                x_temp = np.zeros(np.array(x_buffer.shape) + 1)
-                x_temp[: x_buffer.shape[0], : x_buffer.shape[1]] = x_buffer
-                x_buffer = x_temp.copy()
-                # Check neurogenesis at inhibitory pool and set initial state of new inh neuron
-                if Sorn.ne % 5 == 0:  # 20% of ne
-                    y_temp = np.zeros(np.array(y_buffer.shape) + 1)
-                    y_temp[: y_buffer.shape[0], : y_buffer.shape[1]] = y_buffer
-                    y_buffer = y_temp.copy()
-
-                (Wee[i], Wei[i], Wie[i], Te[i], Ti[i],) = neurogenesis.step(
+                (
+                    x_buffer,
+                    y_buffer,
+                    Wee[i],
+                    Wei[i],
+                    Wie[i],
+                    Te[i],
+                    Ti[i],
+                ) = neurogenesis.step(
+                    exc_pool=self.exc_genesis,
+                    inh_pool=self.inh_genesis,
+                    x_buffer=x_buffer,
+                    y_buffer=y_buffer,
                     wee=Wee[i],
                     wei=Wei[i],
                     wie=Wie[i],
                     te=Te[i],
                     ti=Ti[i],
-                    ne_prev=Sorn.ne,
                 )
 
             Sorn.ne = Wee[i].shape[0]
