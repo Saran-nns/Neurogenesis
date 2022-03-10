@@ -544,13 +544,8 @@ class MatrixCollection(Sorn):
 
 
 class Neurogenesis(Plasticity):
-    """_summary_
-
-    Args:
-        Plasiticity (_type_): _description_
-
-    Returns:
-        _type_: _description_
+    """
+    Module implements the neurogenesis in Excitatory and Inhibitory Pool
     """
 
     def __init__(
@@ -558,25 +553,28 @@ class Neurogenesis(Plasticity):
     ):
         super().__init__()
         self.excitatory_neurogenesis = True
-        self.inhibitory_neurogenesis = False
+        self.inhibitory_neurogenesis = True
 
     def sample_weights(self, lambd=Sorn.lambda_ee):
         """_summary_
 
         Args:
-            lambd (_type_, optional): _description_. Defaults to Sorn.lambd_w.
+            lambd (_type_, optional): _description_. Defaults to Sorn.lambda_ee.
 
         Returns:
             _type_: _description_
         """
+
         return np.random.uniform(0.0, 0.1, lambd)
 
     def sample_indices(self, pool, weights, synapse="ee", lambd=Sorn.lambda_ee):
         """_summary_
 
         Args:
+            pool (_type_): _description_
             weights (_type_): _description_
-            lambd (_type_, optional): _description_. Defaults to Sorn.lambd_w.
+            synapse (str, optional): _description_. Defaults to "ee".
+            lambd (_type_, optional): _description_. Defaults to Sorn.lambda_ee.
 
         Returns:
             _type_: _description_
@@ -603,23 +601,30 @@ class Neurogenesis(Plasticity):
                 indices = random.sample(list(range(weights.shape[1])), lambd)
             else:
                 # synapse == "ie":
-                assert lambd < weights.shape[0]
+                assert lambd == weights.shape[0]  # Dense connection
+
                 indices = random.sample(list(range(weights.shape[0])), lambd)
         return indices
 
     def excitatory(self, wee, wei, wie):
-        """Add a neuron with random incoming and outgoing synapses in the exc pool
+        """_summary_
 
         Args:
             wee (_type_): _description_
+            wei (_type_): _description_
+            wie (_type_): _description_
 
         Returns:
             _type_: _description_
         """
         # Excitatory pool
         # Choose incoming and outgoing synapses randomly
-        eff_idxs_exc = self.sample_indices(wee, synapse="ee", lambd=Sorn.lambda_ee)
-        aff_idxs_exc = self.sample_indices(wee, synapse="ee", lambd=Sorn.lambda_ee)
+        eff_idxs_exc = self.sample_indices(
+            pool="excitatory", weights=wee, synapse="ee", lambd=Sorn.lambda_ee
+        )
+        aff_idxs_exc = self.sample_indices(
+            pool="excitatory", weights=wee, synapse="ee", lambd=Sorn.lambda_ee
+        )
         # Sample incoming and outgoing synaptic weights
         eff_synapses = self.sample_weights(Sorn.lambda_ee)
         aff_synapses = self.sample_weights(Sorn.lambda_ee)
@@ -657,7 +662,9 @@ class Neurogenesis(Plasticity):
         # Excitatory --> Inhibitory
 
         # Efferent connections to Inhibitory Pool; Eci->Inh Dense connection
-        eff_idxs_inh = self.sample_indices(wie, synapse="ie", lambd=Sorn.ni)
+        eff_idxs_inh = self.sample_indices(
+            pool="excitatory", weights=wie, synapse="ie", lambd=Sorn.ni
+        )
 
         # Sample outgoing inhibitory synapses and outgoing excitatory synapses
         eff_synapses_inh = self.sample_weights(
@@ -669,6 +676,8 @@ class Neurogenesis(Plasticity):
         # Update outgoing synapses Wei: sparse inh -> exc synapse
         print(temp_ie.shape, eff_synapses_inh.shape)
         temp_ie[-1] = eff_synapses_inh
+
+        Sorn.ne += 1
 
         return temp_ee, temp_ei, temp_ie
 
@@ -687,7 +696,7 @@ class Neurogenesis(Plasticity):
 
     def inhibitory(self, wei, wie):
 
-        """Update EI and IE synapses during inhibitory neurogenesis
+        """_summary_
 
         Returns:
             _type_: _description_
@@ -729,6 +738,9 @@ class Neurogenesis(Plasticity):
         temp_ie[: wie.shape[0], : wie.shape[1]] = wie  # Padding
         # Update outgoing synapses Wei: sparse inh -> exc synapse
         temp_ie[:, -1] = aff_synapses_exc
+
+        Sorn.ni += 1
+
         return temp_ei, temp_ie
 
     def step(self, exc_pool, inh_pool, x_buffer, y_buffer, wee, wei, wie, te, ti):
@@ -1022,7 +1034,7 @@ class Simulator_(Sorn):
         self.freeze = [] if freeze == None else freeze
         self.callbacks = callbacks
         self.exc_genesis = True
-        self.inh_genesis = False
+        self.inh_genesis = True
         self.ne_init = Sorn.ne
 
         kwargs_ = [
@@ -1170,8 +1182,6 @@ class Simulator_(Sorn):
                     te=Te[i],
                     ti=Ti[i],
                 )
-
-            Sorn.ne = Wee[i].shape[0]
 
             # Synaptic scaling Wee
             if "ss" not in self.freeze:
