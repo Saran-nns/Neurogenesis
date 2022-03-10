@@ -553,10 +553,12 @@ class Neurogenesis(Plasticity):
         _type_: _description_
     """
 
-    def __init__(self, excitatory, inhibitory):
+    def __init__(
+        self,
+    ):
         super().__init__()
-        self.excitatory_neurogenesis = excitatory
-        self.inhibitory_neurogenesis = inhibitory
+        self.excitatory_neurogenesis = True
+        self.inhibitory_neurogenesis = False
 
     def sample_weights(self, lambd=Sorn.lambda_ee):
         """_summary_
@@ -569,7 +571,7 @@ class Neurogenesis(Plasticity):
         """
         return np.random.uniform(0.0, 0.1, lambd)
 
-    def sample_indices(self, weights, synapse="ee", lambd=Sorn.lambda_ee):
+    def sample_indices(self, pool, weights, synapse="ee", lambd=Sorn.lambda_ee):
         """_summary_
 
         Args:
@@ -580,20 +582,28 @@ class Neurogenesis(Plasticity):
             _type_: _description_
         """
 
-        if self.excitatory_neurogenesis:
+        if pool == "excitatory":
+
             if synapse == "ee":
+                assert lambd < weights.shape[1]
                 indices = random.sample(list(range(weights.shape[1])), lambd)
             elif synapse == "ei":
-                indices = random.sample(list(range(weights.shape[0])), lambd)
+                assert lambd < weights.shape[0]
+                indices = random.sample(list(range(0, weights.shape[0])), lambd)
+
             else:
                 # synapse == "ie":
-                indices = random.sample(list(range(weights.shape[0])), lambd)
+                assert lambd == weights.shape[1]  # Dense connection
+                indices = random.sample(list(range(weights.shape[1])), lambd)
 
-        if self.inhibitory_neurogenesis:
+        if pool == "inhibitory":
+
             if synapse == "ei":
+                assert lambd < weights.shape[1]
                 indices = random.sample(list(range(weights.shape[1])), lambd)
             else:
                 # synapse == "ie":
+                assert lambd < weights.shape[0]
                 indices = random.sample(list(range(weights.shape[0])), lambd)
         return indices
 
@@ -625,10 +635,12 @@ class Neurogenesis(Plasticity):
             temp_ee[aff_idx][-1] = w
 
         # Afferent inhibitory connections to the neuron
-        print(wei.shape)
-        aff_idxs_inh = self.sample_indices(wei, synapse="ei", lambd=Sorn.lambda_ei)
+        # aff_idxs_inh = self.sample_indices(wei, synapse="ei", lambd=Sorn.lambda_ei)
+        aff_idxs_inh = self.sample_indices(
+            pool="excitatory", weights=wei, synapse="ei", lambd=20
+        )
         assert (
-            max(aff_idxs_inh) < Sorn.ne
+            max(aff_idxs_inh) <= Sorn.ni
         ), f"Max afferent inhibitory index is {max(aff_idxs_inh)}"
 
         aff_synapses_inh = self.sample_weights(
@@ -639,21 +651,23 @@ class Neurogenesis(Plasticity):
         temp_ei = np.zeros((wei.shape[0], wei.shape[1] + 1))  # [40,201]
         temp_ei[: wei.shape[0], : wei.shape[1]] = wei  # Padding
         # Update outgoing synapses Wei: sparse inh -> exc synapse
-        temp_ei[:, -1] = aff_synapses_inh
+        for idx, w in zip(aff_idxs_inh, aff_synapses_inh):
+            temp_ei[idx][-1] = w
 
         # Excitatory --> Inhibitory
 
-        # Efferent connections to Inhibitory Pool
-        eff_idxs_inh = self.sample_indices(wie, synapse="ie", lambd=Sorn.lambda_ie)
-        assert max(eff_idxs_inh) < Sorn.ne
+        # Efferent connections to Inhibitory Pool; Eci->Inh Dense connection
+        eff_idxs_inh = self.sample_indices(wie, synapse="ie", lambd=Sorn.ni)
 
         # Sample outgoing inhibitory synapses and outgoing excitatory synapses
         eff_synapses_inh = self.sample_weights(
             lambd=len(eff_idxs_inh)
         )  # 100% connectivity. E-> I Eg. Wie.shape=[200,40]
+        assert len(eff_idxs_inh) == len(eff_synapses_inh), "Synapses size mismatch"
         temp_ie = np.zeros((wie.shape[0] + 1, wie.shape[1]))  # [201,40]
         temp_ie[: wie.shape[0], : wie.shape[1]] = wie  # Padding
         # Update outgoing synapses Wei: sparse inh -> exc synapse
+        print(temp_ie.shape, eff_synapses_inh.shape)
         temp_ie[-1] = eff_synapses_inh
 
         return temp_ee, temp_ei, temp_ie
@@ -679,30 +693,42 @@ class Neurogenesis(Plasticity):
             _type_: _description_
         """
 
-        # Choose incoming inhibitory and outgoing excitatory synapses randomly
-        out_indices = self.sample_indices(wei, Sorn.lambda_ei)  # I->E Sparse
-        in_indices = list(range(len(wie.shape[1])))  # E->I Dense
+        # Afferent inhibitory connections to the neuron
+        # TODO: Lamdas are global parameters.
+        # Check and set lamdas for local connection according to the synapse
+        eff_idxs_exc = self.sample_indices(
+            pool="inhibitory", weights=wei, synapse="ei", lambd=Sorn.lambda_ei
+        )
+        assert (
+            max(eff_idxs_exc) < Sorn.ne
+        ), f"Max afferent inhibitory index is {max(eff_idxs_exc)}"
 
-        # # Sample outgoing inhibitory synapses and outgoing excitatory synapses
-        out_synapses = self.sample_weights(
-            lambd=int(0.4 * wei.shape[0] * wei.shape[1])
-        )  # 40% dense connections. I-> E Eg. Wei.shape=[40,200]
-        in_synapses = np.random.uniform(
-            0.0, 0.1, wie.shape[1]
-        )  # E->I Eg. Wie.shape = [200,40]
+        eff_synapses_exc = self.sample_weights(
+            lambd=len(eff_idxs_exc)
+        )  # 40% connectivity. I-> E Eg. Wei.shape=[40,200]
+        assert len(eff_idxs_exc) == len(eff_synapses_exc), "Synapses size mismatch"
 
-        # Apppend additional rows (outgoing synapses) and cols (incoming)
-        temp_ei = np.zeros((wei.shape[0] + 1, wei.shape[1]))  # [41,200]
-        temp_ie = np.zeros((wie.shape[0], wie.shape[1] + 1))  # [200,41]
-
+        temp_ei = np.zeros((wei.shape[0] + 1, wei.shape[1]))  # [40,201]
+        temp_ei[: wei.shape[0], : wei.shape[1]] = wei  # Padding
         # Update outgoing synapses Wei: sparse inh -> exc synapse
-        for out_idx, w in zip(out_indices, out_synapses):
-            temp_ei[-1][out_idx] = w
+        for idx, w in zip(eff_idxs_exc, eff_synapses_exc):
+            temp_ei[-1][idx] = w
 
-        # Update incoming synapses Wie: Dense exc -> inh synapse
-        for in_idx, w in zip(in_indices, in_synapses):
-            temp_ie[in_idx][-1] = w
+        # Excitatory --> Inhibitory
+        # Afferent connections to Inhibitory Pool; Exc->Inh Dense connection
+        aff_idxs_exc = self.sample_indices(
+            pool="inhibitory", weights=wie, synapse="ie", lambd=Sorn.ne
+        )
 
+        # Sample outgoing inhibitory synapses and outgoing excitatory synapses
+        aff_synapses_exc = self.sample_weights(
+            lambd=len(aff_idxs_exc)
+        )  # 100% connectivity. E-> I Eg. Wie.shape=[200,40]
+        assert len(aff_idxs_exc) == len(aff_synapses_exc), "Synapses size mismatch"
+        temp_ie = np.zeros((wie.shape[0], wie.shape[1] + 1))  # [201,40]
+        temp_ie[: wie.shape[0], : wie.shape[1]] = wie  # Padding
+        # Update outgoing synapses Wei: sparse inh -> exc synapse
+        temp_ie[:, -1] = aff_synapses_exc
         return temp_ei, temp_ie
 
     def step(self, exc_pool, inh_pool, x_buffer, y_buffer, wee, wei, wie, te, ti):
@@ -717,7 +743,6 @@ class Neurogenesis(Plasticity):
             # Set efferent and afferent synapses and threshold
             wee, wei, wie = self.excitatory(wee, wei, wie)
             te = self.set_threshold(thresh=te)
-            print("$$$$$$", wee.shape, wie.shape, wei.shape, te.shape)
 
         if inh_pool:
             self.inhibitory_neurogenesis = inh_pool
@@ -997,7 +1022,7 @@ class Simulator_(Sorn):
         self.freeze = [] if freeze == None else freeze
         self.callbacks = callbacks
         self.exc_genesis = True
-        self.inh_genesis = True
+        self.inh_genesis = False
         self.ne_init = Sorn.ne
 
         kwargs_ = [
@@ -1123,9 +1148,7 @@ class Simulator_(Sorn):
 
             if (Sorn.ne > self.ne_init) and (Sorn.ne % 5 == 0):
                 self.inh_genesis = True
-            neurogenesis = Neurogenesis(
-                excitatory=self.exc_genesis, inhibitory=self.inh_genesis
-            )
+            neurogenesis = Neurogenesis()
             if self.exc_genesis or self.inh_genesis:
 
                 (
