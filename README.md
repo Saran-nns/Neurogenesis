@@ -23,3 +23,5 @@ PFC and hippocampus communicate bidirectionally through oscillatory synchrony.
 
 The attenuation of neurogenesis in the mouse SGZ has been reported to result in the impairment of new memory formation. These new neurons are also important for the formation of spatial memories. Furthermore, new integrated neurons in the DG have the function of organizing past memories and alleviating the stress response 
 
+6. Decomposing the local arrow of time in interacting systems https://arxiv.org/pdf/2112.14721.pdf
+Study entropy production and the arrow of time. Treating each variable independently leads to overestimate. Time revesibility?
