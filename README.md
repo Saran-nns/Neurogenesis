@@ -32,7 +32,7 @@ Study entropy production and the arrow of time. Treating each variable independe
 1. modelling human memory through neurogenesis and apoptosis in deep self organizing recurrent networks
 2. Alleviate catastrophic forgetting phenomena in continuos learning
 3. Distributed representation of patterns and memory retrieval: catastrophic interference
-4. Enable models to expand to multi-task learning: 
+4. Investigate inductive biases and multi-task learning 
 
 # TODO
 1. Why we need neurogenesis in SORN?
