@@ -25,3 +25,18 @@ The attenuation of neurogenesis in the mouse SGZ has been reported to result in 
 
 6. Decomposing the local arrow of time in interacting systems https://arxiv.org/pdf/2112.14721.pdf
 Study entropy production and the arrow of time. Treating each variable independently leads to overestimate. Time revesibility?
+
+
+# GoalsÖ
+
+1. Modelling neurogenesis and apoptosis in deep self organizing recurrent networks
+2. Alleviate catastrophic forgetting in continuos learning
+3. Enable models to expand to multi-task learning: 
+
+TODOÖ
+1. Why we need neurogenesis in SORN?
+    a. Network size vs Number of active synapses vs Network performance in sequence learning
+    b. Investigate and identify document how and why catastrophic forgetting occuring.
+    b. Observe dynamic memory and adaptation strategies. https://www.nature.com/articles/s41467-021-25858-z
+2. Add new neurons at random time intervals and repeat step 1.
+3. 
