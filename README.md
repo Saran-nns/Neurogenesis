@@ -29,7 +29,7 @@ Study entropy production and the arrow of time. Treating each variable independe
 
 # Goals
 
-1. modelling human memory through neurogenesis and apoptosis in deep self organizing recurrent networks
+1. modelling neurogenesis in deep self organizing recurrent networks and online learning
 2. Alleviate catastrophic forgetting phenomena in continuos learning
 3. Distributed representation of patterns and memory retrieval: catastrophic interference
 4. Investigate inductive biases and multi-task learning 
