@@ -26,7 +26,7 @@ import os
 import random
 import logging
 from multiprocessing import Pool
-
+from tqdm import tqdm
 from sorn.callbacks import *
 from sorn.utils import Initializer
 
@@ -65,7 +65,7 @@ class Sorn(object):
     def initialize_weight_matrix(
         network_type: str, synaptic_connection: str, self_connection: str, lambd_w: int
     ):
-        """Wrapper for initializing the weight matrices for SORN
+        """Wrapper for initializing the weight state for SORN
 
         Args:
             network_type (str): Spare or Dense
@@ -315,13 +315,13 @@ class Plasticity(Sorn):
 
     @staticmethod
     def initialize_plasticity():
-        """Initialize weight matrices for plasticity phase based on network configuration
+        """Initialize weight state for plasticity phase based on network configuration
 
         Args:
             kwargs (self.__dict__): All arguments are inherited from Sorn attributes
 
         Returns:
-            tuple(array): Weight matrices WEI, WEE, WIE and threshold matrices Te, Ti and Initial state vectors X,Y"""
+            tuple(array): Weight state WEI, WEE, WIE and threshold state Te, Ti and Initial state vectors X,Y"""
 
         sorn_init = Sorn()
         WEE_init = sorn_init.initialize_weight_matrix(
@@ -383,22 +383,22 @@ class Plasticity(Sorn):
 
 
 class MatrixCollection(Sorn):
-    """Collect all matrices initialized and updated during simulation(plasiticity and training phases)
+    """Collect all state initialized and updated during simulation(plasiticity and training phases)
 
     Args:
         phase(str): Training or Plasticity phase
 
-        matrices(dict): Network activity, threshold and connection matrices
+        state(dict): Network activity, threshold and connection state
 
     Returns:
         MatrixCollection instance"""
 
-    def __init__(self, phase: str, matrices: dict = None):
+    def __init__(self, phase, state=None):
         super().__init__()
 
         self.phase = phase
-        self.matrices = matrices
-        if self.phase == "plasticity" and self.matrices == None:
+        self.state = state
+        if self.phase == "plasticity" and self.state == None:
 
             self.timesteps = Sorn.timesteps + 1  # Total training steps
             self.Wee, self.Wei, self.Wie, self.Te, self.Ti, self.X, self.Y = (
@@ -412,7 +412,7 @@ class MatrixCollection(Sorn):
             )
             wee, wei, wie, te, ti, x, y = Plasticity.initialize_plasticity()
 
-            # Assign initial matrix to the master matrices
+            # Assign initial matrix to the master state
             self.Wee[0] = wee
             self.Wei[0] = wei
             self.Wie[0] = wie
@@ -421,7 +421,7 @@ class MatrixCollection(Sorn):
             self.X[0] = x
             self.Y[0] = y
 
-        elif self.phase == "plasticity" and self.matrices != None:
+        elif self.phase == "plasticity" and self.state != None:
 
             self.timesteps = Sorn.timesteps + 1  # Total training steps
             self.Wee, self.Wei, self.Wie, self.Te, self.Ti, self.X, self.Y = (
@@ -433,14 +433,14 @@ class MatrixCollection(Sorn):
                 [0] * self.timesteps,
                 [0] * self.timesteps,
             )
-            # Assign matrices from plasticity phase to the new master matrices for training phase
-            self.Wee[0] = matrices["Wee"]
-            self.Wei[0] = matrices["Wei"]
-            self.Wie[0] = matrices["Wie"]
-            self.Te[0] = matrices["Te"]
-            self.Ti[0] = matrices["Ti"]
-            self.X[0] = matrices["X"]
-            self.Y[0] = matrices["Y"]
+            # Assign state from plasticity phase to the new master state for training phase
+            self.Wee[0] = state["Wee"]
+            self.Wei[0] = state["Wei"]
+            self.Wie[0] = state["Wie"]
+            self.Te[0] = state["Te"]
+            self.Ti[0] = state["Ti"]
+            self.X[0] = state["X"]
+            self.Y[0] = state["Y"]
 
         elif self.phase == "training":
 
@@ -455,17 +455,17 @@ class MatrixCollection(Sorn):
                 [0] * self.timesteps,
                 [0] * self.timesteps,
             )
-            # Assign matrices from plasticity phase to new respective matrices for training phase
-            self.Wee[0] = matrices["Wee"]
-            self.Wei[0] = matrices["Wei"]
-            self.Wie[0] = matrices["Wie"]
-            self.Te[0] = matrices["Te"]
-            self.Ti[0] = matrices["Ti"]
-            self.X[0] = matrices["X"]
-            self.Y[0] = matrices["Y"]
+            # Assign state from plasticity phase to new respective state for training phase
+            self.Wee[0] = state["Wee"]
+            self.Wei[0] = state["Wei"]
+            self.Wie[0] = state["Wie"]
+            self.Te[0] = state["Te"]
+            self.Ti[0] = state["Ti"]
+            self.X[0] = state["X"]
+            self.Y[0] = state["Y"]
 
     def weight_matrix(self, wee: np.array, wei: np.array, wie: np.array, i: int):
-        """Update weight matrices
+        """Update weight state
 
         Args:
             wee(array): Excitatory-Excitatory weight matrix
@@ -477,7 +477,7 @@ class MatrixCollection(Sorn):
             i(int): Time step
 
         Returns:
-            tuple(array): Weight Matrices Wee, Wei, Wie"""
+            tuple(array): Weight state Wee, Wei, Wie"""
 
         self.Wee[i + 1] = wee
         self.Wei[i + 1] = wei
@@ -486,7 +486,7 @@ class MatrixCollection(Sorn):
         return self.Wee, self.Wei, self.Wie
 
     def threshold_matrix(self, te: np.array, ti: np.array, i: int):
-        """Update threshold matrices
+        """Update threshold state
 
         Args:
             te(array): Excitatory threshold
@@ -496,7 +496,7 @@ class MatrixCollection(Sorn):
             i(int): Time step
 
         Returns:
-            tuple(array): Threshold Matrices Te and Ti"""
+            tuple(array): Threshold state Te and Ti"""
 
         self.Te[i + 1] = te
         self.Ti[i + 1] = ti
@@ -674,7 +674,6 @@ class Neurogenesis(Plasticity):
         temp_ie = np.zeros((wie.shape[0] + 1, wie.shape[1]))  # [201,40]
         temp_ie[: wie.shape[0], : wie.shape[1]] = wie  # Padding
         # Update outgoing synapses Wei: sparse inh -> exc synapse
-        print(temp_ie.shape, eff_synapses_inh.shape)
         temp_ie[-1] = eff_synapses_inh
 
         Sorn.ne += 1
@@ -938,21 +937,21 @@ class NetworkState(Plasticity):
 # Simulate / Train SORN
 class Simulator_(Sorn):
 
-    """Simulate SORN using external input/noise using the fresh or pretrained matrices
+    """Simulate SORN using external input/noise using the fresh or pretrained state
 
     Args:
         inputs(np.array, optional): External stimuli. Defaults to None.
 
         phase(str, optional): Plasticity phase. Defaults to "plasticity".
 
-        matrices(dict, optional): Network states, connections and threshold matrices. Defaults to None.
+        state(dict, optional): Network states, connections and threshold state. Defaults to None.
 
         timesteps(int, optional): Total number of time steps to simulate the network. Defaults to 1.
 
         noise(bool, optional): If True, noise will be added. Defaults to True.
 
     Returns:
-        plastic_matrices(dict): Network states, connections and threshold matrices
+        plastic_state(dict): Network states, connections and threshold state
 
         X_all(array): Excitatory network activity collected during entire simulation steps
 
@@ -986,11 +985,11 @@ class Simulator_(Sorn):
             for key, val in zip(keys, values):
                 self.callback_state[key] = val
 
-    def simulate_sorn(
+    def run(
         self,
         inputs: np.array = None,
         phase: str = "plasticity",
-        matrices: dict = None,
+        state: dict = None,
         timesteps: int = None,
         noise: bool = True,
         freeze: list = None,
@@ -1005,7 +1004,7 @@ class Simulator_(Sorn):
 
             phase(str, optional): Plasticity phase. Defaults to "plasticity"
 
-            matrices(dict, optional): Network states, connections and threshold matrices. Defaults to None.
+            state(dict, optional): Network states, connections and threshold state. Defaults to None.
 
             timesteps(int, optional): Total number of time steps to simulate the network. Defaults to 1.
 
@@ -1019,7 +1018,7 @@ class Simulator_(Sorn):
                                                             "RecurrentActivation", "WEE", "WEI", "TE", "EEConnectionCounts"] collected and returned from the simulate sorn object.
 
         Returns:
-            plastic_matrices(dict): Network states, connections and threshold matrices
+            plastic_state(dict): Network states, connections and threshold state
 
             callback_values(dict): Requexted network parameters and activations"""
 
@@ -1030,7 +1029,7 @@ class Simulator_(Sorn):
         self.timesteps = timesteps
         Sorn.timesteps = timesteps
         self.phase = phase
-        self.matrices = matrices
+        self.state = state
         self.freeze = [] if freeze == None else freeze
         self.callbacks = callbacks
         self.exc_genesis = True
@@ -1062,8 +1061,8 @@ class Simulator_(Sorn):
         Sorn.ni = int(0.2 * Sorn.ne)
 
         plasticity = Plasticity()
-        # Initialize/Get the weight, threshold matrices and activity vectors
-        matrix_collection = MatrixCollection(phase=self.phase, matrices=self.matrices)
+        # Initialize/Get the weight, threshold state and activity vectors
+        matrix_collection = MatrixCollection(phase=self.phase, state=self.state)
 
         if self.callbacks:
             assert isinstance(self.callbacks, list), "Callbacks must be a list"
@@ -1078,8 +1077,18 @@ class Simulator_(Sorn):
                 self.timesteps, self.avail_callbacks, self.callbacks
             )
 
+        if self.exc_genesis:
+            n_neurons = 100
+            init_genesis = 100
+            assert self.timesteps > (
+                n_neurons - init_genesis
+            ), "Neurogenesis steps is higher than simulation time steps"
+            self.genesis_times = random.sample(
+                range(init_genesis, self.timesteps), n_neurons
+            )
+
         # To get the last activation status of Exc and Inh neurons
-        for i in range(self.timesteps):
+        for i in tqdm(range(self.timesteps)):
 
             Wee, Wei, Wie = (
                 matrix_collection.Wee,
@@ -1155,40 +1164,41 @@ class Simulator_(Sorn):
                 )
 
             # TODO: Test condition for neurogenesis
-            # If the conditions are true then set VARIABLES exc_pool True
-            self.exc_genesis = True
-
-            if (Sorn.ne > self.ne_init) and (Sorn.ne % 5 == 0):
-                self.inh_genesis = True
-            neurogenesis = Neurogenesis()
-            if self.exc_genesis or self.inh_genesis:
-
-                (
-                    x_buffer,
-                    y_buffer,
-                    Wee[i],
-                    Wei[i],
-                    Wie[i],
-                    Te[i],
-                    Ti[i],
-                ) = neurogenesis.step(
-                    exc_pool=self.exc_genesis,
-                    inh_pool=self.inh_genesis,
-                    x_buffer=x_buffer,
-                    y_buffer=y_buffer,
-                    wee=Wee[i],
-                    wei=Wei[i],
-                    wie=Wie[i],
-                    te=Te[i],
-                    ti=Ti[i],
-                )
+            if self.exc_genesis:
+                # Check genesis time
+                if i in self.genesis_times:
+                    # Check for inhibitory neurogenesis
+                    if (Sorn.ne > self.ne_init) and ((Sorn.ne + 1) % 5 == 0):
+                        self.inh_genesis = True
+                    else:
+                        self.inh_genesis = False
+                    neurogenesis = Neurogenesis()
+                    (
+                        x_buffer,
+                        y_buffer,
+                        Wee[i],
+                        Wei[i],
+                        Wie[i],
+                        Te[i],
+                        Ti[i],
+                    ) = neurogenesis.step(
+                        exc_pool=self.exc_genesis,
+                        inh_pool=self.inh_genesis,
+                        x_buffer=x_buffer,
+                        y_buffer=y_buffer,
+                        wee=Wee[i],
+                        wei=Wei[i],
+                        wie=Wie[i],
+                        te=Te[i],
+                        ti=Ti[i],
+                    )
 
             # Synaptic scaling Wee
             if "ss" not in self.freeze:
                 Wee[i] = plasticity.ss(Wee[i])
                 Wei[i] = plasticity.ss(Wei[i])
 
-            # Assign the matrices to the matrix collections
+            # Assign the state to the matrix collections
             matrix_collection.weight_matrix(Wee[i], Wei[i], Wie[i], i)
             matrix_collection.threshold_matrix(Te[i], Ti[i], i)
             matrix_collection.network_activity_t(x_buffer, y_buffer, i)
@@ -1207,7 +1217,7 @@ class Simulator_(Sorn):
 
                 self.dispatcher.step(self.callback_state, time_step=i)
 
-        plastic_matrices = {
+        plastic_state = {
             "Wee": matrix_collection.Wee[-1],
             "Wei": matrix_collection.Wei[-1],
             "Wie": matrix_collection.Wie[-1],
@@ -1217,13 +1227,13 @@ class Simulator_(Sorn):
             "Y": Y[-1],
         }
         if self.callbacks:
-            return plastic_matrices, self.dispatcher.get()
+            return plastic_state, self.dispatcher.get()
         else:
-            return plastic_matrices, {}
+            return plastic_state, {}
 
 
 class Trainer_(Sorn):
-    """Train the network with the fresh or pretrained network matrices and external stimuli"""
+    """Train the network with the fresh or pretrained network state and external stimuli"""
 
     def __init__(self):
         super().__init__()
@@ -1251,22 +1261,22 @@ class Trainer_(Sorn):
     def train_sorn(
         self,
         inputs: np.array = None,
-        phase: str = "training",
-        matrices: dict = None,
+        phase: str = "train",
+        state=None,
         timesteps: int = None,
         noise: bool = True,
         freeze: list = None,
         callbacks: list = [],
         **kwargs,
     ):
-        """Train the network with the fresh or pretrained network matrices and external stimuli
+        """Train the network with the fresh or pretrained network state and external stimuli
 
             Args:
             inputs(np.array, optional): External stimuli. Defaults to None.
 
             phase(str, optional): Training phase. Defaults to "training".
 
-            matrices(dict, optional): Network states, connections and threshold matrices. Defaults to None.
+            state(dict, optional): Network states, connections and threshold state. Defaults to None.
 
             timesteps(int, optional): Total number of time steps to simulate the network. Defaults to 1.
 
@@ -1277,7 +1287,7 @@ class Trainer_(Sorn):
             max_workers(int, optional): Maximum workers for multhreading the plasticity steps
 
         Returns:
-            plastic_matrices(dict): Network states, connections and threshold matrices
+            plastic_state(dict): Network states, connections and threshold state
 
             X_all(array): Excitatory network activity collected during entire simulation steps
 
@@ -1316,13 +1326,13 @@ class Trainer_(Sorn):
         Sorn.ni = int(0.2 * Sorn.ne)
 
         self.phase = phase
-        self.matrices = matrices
+        self.state = state
         self.timesteps = timesteps
         Sorn.timesteps = timesteps
         self.inputs = np.asarray(inputs)
         self.freeze = [] if freeze == None else freeze
         self.callbacks = callbacks
-        matrix_collection = MatrixCollection(phase=self.phase, matrices=self.matrices)
+        matrix_collection = MatrixCollection(phase=self.phase, state=self.state)
 
         if self.callbacks:
             assert isinstance(self.callbacks, list), "Callbacks must be a list"
@@ -1419,7 +1429,7 @@ class Trainer_(Sorn):
                 # Wee[i], Wei[i], Te[i] remain same
                 pass
 
-            # Assign the matrices to the matrix collections
+            # Assign the state to the matrix collections
             matrix_collection.weight_matrix(Wee[i], Wei[i], Wie[i], i)
             matrix_collection.threshold_matrix(Te[i], Ti[i], i)
             matrix_collection.network_activity_t(x_buffer, y_buffer, i)
@@ -1438,7 +1448,7 @@ class Trainer_(Sorn):
 
                 self.dispatcher.step(self.callback_state, time_step=i)
 
-        plastic_matrices = {
+        plastic_state = {
             "Wee": matrix_collection.Wee[-1],
             "Wei": matrix_collection.Wei[-1],
             "Wie": matrix_collection.Wie[-1],
@@ -1449,9 +1459,9 @@ class Trainer_(Sorn):
         }
 
         if self.callbacks:
-            return plastic_matrices, self.dispatcher.get()
+            return plastic_state, self.dispatcher.get()
         else:
-            return plastic_matrices, {}
+            return plastic_state, {}
 
 
 Trainer = Trainer_()

@@ -1,3 +1,5 @@
+import numpy as np
+
 # From single cell to global brain dynamics
 # Articles:
 # https://arxiv.org/pdf/2112.14721.pdf
@@ -21,7 +23,7 @@ def joint_entropy(x: np.array, y: np.array):
     """Compute Joint entropy between two vectors
     H(X,Y) = -sum(P(X,Y)log2(P(X,Y))
     Args:
-        x (array): 1D Array or activations of a layer or feature vector 
+        x (array): 1D Array or activations of a layer or feature vector
         y (array): 1D Array or activations of another layer or feature vector
 
     Returns:
@@ -32,11 +34,12 @@ def joint_entropy(x: np.array, y: np.array):
     h_xy = entropy(xy)
     return h_xy
 
+
 def conditional_entropy(x: np.array, y: np.array):
     """Compute conditional entropy of X given Y
     H[X|Y] = H(X,Y) - H(Y)
     Args:
-        x (array): 1D Array or activations of a layer or feature vector 
+        x (array): 1D Array or activations of a layer or feature vector
         y (array): 1D Array or activations of another layer or feature vector
     """
     c_x_y = joint_entropy(x, y) - entropy(y)
@@ -46,13 +49,13 @@ def conditional_entropy(x: np.array, y: np.array):
 def mutual_information(x: np.array, y: np.array):
 
     """Compute Mutual information/Information gain between variables X and Y as
-    I(X,Y) = H(X) - H(X|Y) = H(Y) - H(Y|X) = H(X)+ H(Y)-H(X,Y) 
+    I(X,Y) = H(X) - H(X|Y) = H(Y) - H(Y|X) = H(X)+ H(Y)-H(X,Y)
     Args:
-        x (array): 1D Array or activations of a layer or feature vector 
+        x (array): 1D Array or activations of a layer or feature vector
         y (array): 1D Array or activations of another layer or feature vector
 
     Returns:
-        mi (float): Mutual information between X and Y  
+        mi (float): Mutual information between X and Y
     """
     I = entropy(x) - conditional_entropy(x, y)
     return I
