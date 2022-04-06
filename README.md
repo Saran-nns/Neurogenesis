@@ -26,7 +26,8 @@ The attenuation of neurogenesis in the mouse SGZ has been reported to result in 
 6. Decomposing the local arrow of time in interacting systems https://arxiv.org/pdf/2112.14721.pdf
 Study entropy production and the arrow of time. Treating each variable independently leads to overestimate. Time revesibility?
 
-
+7. Older circuits get richer: neurogenesis timeline shapes hubness and neurogenetic profiles of the adult human brain https://www.biorxiv.org/content/10.1101/2022.04.01.486541v2
+8. 
 # Goals
 
 1. modelling neurogenesis in deep self organizing recurrent networks and online learning
