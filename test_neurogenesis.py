@@ -38,6 +38,8 @@ class TestNeurogenesis(unittest.TestCase):
                 noise=True,
                 nu=num_features,
                 neurogenesis=True,
+                neurogenesis_init_step=10,
+                num_new_neurons=100,
             ),
         )
 

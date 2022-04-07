@@ -994,6 +994,8 @@ class Simulator_(Sorn):
         noise: bool = True,
         freeze: list = None,
         neurogenesis: bool = True,
+        num_new_neurons: int = None,
+        neurogenesis_init_step: int = None,
         callbacks: list = [],
         **kwargs,
     ):
@@ -1014,6 +1016,9 @@ class Simulator_(Sorn):
 
             neurogenesis(bool, optional): If True, new neurons will be added based on certain conditions. Defaults to True
 
+            num_new_neurons(int, optional): Number of new neurons to create at excitatory pool during neurogenesis
+
+            neurogenesis_init_step(int, optional): Step to start neurogenesis
             callbacks(list, optional): Requested values from ["ExcitatoryActivation", "InhibitoryActivation",
                                                             "RecurrentActivation", "WEE", "WEI", "TE", "EEConnectionCounts"] collected and returned from the simulate sorn object.
 
@@ -1034,6 +1039,8 @@ class Simulator_(Sorn):
         self.callbacks = callbacks
         self.exc_genesis = True
         self.inh_genesis = True
+        self.num_new_neurons = num_new_neurons
+        self.neurogenesis_init_step = neurogenesis_init_step
         self.ne_init = Sorn.ne
 
         kwargs_ = [
@@ -1078,13 +1085,13 @@ class Simulator_(Sorn):
             )
 
         if self.exc_genesis:
-            n_neurons = 100
-            init_genesis = 100
+            assert self.num_new_neurons != None, "Number of neurons value missing"
+            assert self.neurogenesis_init_step != None, "Neurogenesis step missing"
             assert self.timesteps > (
-                n_neurons - init_genesis
+                self.num_new_neurons - self.neurogenesis_init_step
             ), "Neurogenesis steps is higher than simulation time steps"
             self.genesis_times = random.sample(
-                range(init_genesis, self.timesteps), n_neurons
+                range(self.neurogenesis_init_step, self.timesteps), self.num_new_neurons
             )
 
         # To get the last activation status of Exc and Inh neurons
