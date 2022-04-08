@@ -28,7 +28,7 @@ import logging
 from multiprocessing import Pool
 from tqdm import tqdm
 from sorn.callbacks import *
-from sorn.utils import Initializer
+from sorn.utils import Initializer, generate_exp
 
 
 logging.basicConfig(
@@ -1090,8 +1090,11 @@ class Simulator_(Sorn):
             assert self.timesteps > (
                 self.num_new_neurons - self.neurogenesis_init_step
             ), "Neurogenesis steps is higher than simulation time steps"
-            self.genesis_times = random.sample(
-                range(self.neurogenesis_init_step, self.timesteps), self.num_new_neurons
+
+            self.genesis_times = generate_exp(
+                size=self.num_new_neurons,
+                rmin=self.neurogenesis_init_step,
+                rmax=self.timesteps,
             )
 
         # To get the last activation status of Exc and Inh neurons

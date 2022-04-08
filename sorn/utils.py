@@ -808,8 +808,8 @@ class Plotter(object):
         scale = np.exp(mu)  # Scipy's scale parameter
         median = np.exp(mu)
 
-        mode = np.exp(mu - sigma ** 2)  # Note that mode depends on both M and s
-        mean = np.exp(mu + (sigma ** 2 / 2))  # Note that mean depends on both M and s
+        mode = np.exp(mu - sigma**2)  # Note that mode depends on both M and s
+        mean = np.exp(mu + (sigma**2 / 2))  # Note that mean depends on both M and s
         x = np.linspace(np.min(weights), np.max(weights), num=num_points)
 
         pdf = stats.lognorm.pdf(x, shape, loc=0, scale=scale)
@@ -1180,3 +1180,15 @@ class Statistics(object):
         )  # Spike source entropy
 
         return sse
+
+
+def generate_exp(size, rmin, rmax):
+    x = random.sample(range(rmin, rmax), size)
+    x.sort()
+    d = np.square(x)
+
+    def scale(d, rmin=1, rmax=1000):
+        f = (d - rmin) / (rmax - rmin)
+        return int(f)
+
+    return list(map(scale, d))
