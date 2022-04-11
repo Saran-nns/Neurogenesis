@@ -1185,7 +1185,7 @@ class Statistics(object):
 def generate_exp(size, rmin, rmax):
     x = random.sample(range(rmin, rmax), size)
     x.sort()
-    d = np.square(x)
+    d = np.power(x,2)
 
     def scale(d, rmin=1, rmax=1000):
         f = (d - rmin) / (rmax - rmin)

@@ -58,7 +58,7 @@ class Sorn(object):
     network_type_ei = "Sparse"
     network_type_ie = "Dense"
     lambda_ee = 20
-    lambda_ei = 40
+    lambda_ei = 20
     lambda_ie = 100
 
     @staticmethod
@@ -586,7 +586,7 @@ class Neurogenesis(Plasticity):
                 assert lambd < weights.shape[1]
                 indices = random.sample(list(range(weights.shape[1])), lambd)
             elif synapse == "ei":
-                assert lambd < weights.shape[0]
+                assert lambd <= weights.shape[0]
                 indices = random.sample(list(range(0, weights.shape[0])), lambd)
 
             else:
@@ -597,7 +597,7 @@ class Neurogenesis(Plasticity):
         if pool == "inhibitory":
 
             if synapse == "ei":
-                assert lambd < weights.shape[1]
+                assert lambd <= weights.shape[1]
                 indices = random.sample(list(range(weights.shape[1])), lambd)
             else:
                 # synapse == "ie":
@@ -617,6 +617,7 @@ class Neurogenesis(Plasticity):
         Returns:
             _type_: _description_
         """
+        
         # Excitatory pool
         # Choose incoming and outgoing synapses randomly
         eff_idxs_exc = self.sample_indices(
@@ -642,7 +643,7 @@ class Neurogenesis(Plasticity):
         # Afferent inhibitory connections to the neuron
         # aff_idxs_inh = self.sample_indices(wei, synapse="ei", lambd=Sorn.lambda_ei)
         aff_idxs_inh = self.sample_indices(
-            pool="excitatory", weights=wei, synapse="ei", lambd=20
+            pool="excitatory", weights=wei, synapse="ei", lambd=5
         )
         assert (
             max(aff_idxs_inh) <= Sorn.ni
@@ -1087,7 +1088,7 @@ class Simulator_(Sorn):
         if self.exc_genesis:
             assert self.num_new_neurons != None, "Number of neurons value missing"
             assert self.neurogenesis_init_step != None, "Neurogenesis step missing"
-            assert self.timesteps > (
+            assert self.timesteps > abs(
                 self.num_new_neurons - self.neurogenesis_init_step
             ), "Neurogenesis steps is higher than simulation time steps"
 
@@ -1096,7 +1097,7 @@ class Simulator_(Sorn):
                 rmin=self.neurogenesis_init_step,
                 rmax=self.timesteps,
             )
-
+            print(len(np.unique(self.genesis_times)))
         # To get the last activation status of Exc and Inh neurons
         for i in tqdm(range(self.timesteps)):
 
@@ -1236,6 +1237,7 @@ class Simulator_(Sorn):
             "X": X[-1],
             "Y": Y[-1],
         }
+        print(matrix_collection.Wee[-1].shape)
         if self.callbacks:
             return plastic_state, self.dispatcher.get()
         else:

@@ -34,7 +34,7 @@ class TestSorn(unittest.TestCase):
         # Initialize and simulate SORN with the default hyperparameters
         self.assertRaises(
             Exception,
-            Simulator.simulate_sorn(
+            Simulator.run(
                 inputs=simulation_inputs,
                 phase="plasticity",
                 matrices=None,
@@ -46,7 +46,7 @@ class TestSorn(unittest.TestCase):
         # Initilize and resume the simulation of SORN using the state dictionary, state_dict
         self.assertRaises(
             Exception,
-            Simulator.simulate_sorn(
+            Simulator.run(
                 inputs=simulation_inputs,
                 phase="plasticity",
                 matrices=state_dict,
@@ -57,7 +57,7 @@ class TestSorn(unittest.TestCase):
         # Freeze a particular plasticity during simulation
         self.assertRaises(
             Exception,
-            Simulator.simulate_sorn(
+            Simulator.run(
                 inputs=simulation_inputs,
                 phase="plasticity",
                 matrices=state_dict,
@@ -70,7 +70,7 @@ class TestSorn(unittest.TestCase):
         # Freeze multiple plasticity mechanisms during simulation
         self.assertRaises(
             Exception,
-            Simulator.simulate_sorn(
+            Simulator.run(
                 inputs=simulation_inputs,
                 phase="plasticity",
                 matrices=state_dict,
@@ -107,7 +107,7 @@ class TestSorn(unittest.TestCase):
         # Override the default hyperparameters, initialize SORN and simulate under all plasticity mechanisms
         self.assertRaises(
             Exception,
-            Simulator.simulate_sorn(
+            Simulator.run(
                 inputs=inputs,
                 phase="plasticity",
                 matrices=None,
@@ -138,7 +138,7 @@ class TestSorn(unittest.TestCase):
         # Test Callbacks
         self.assertRaises(
             Exception,
-            Simulator.simulate_sorn(
+            Simulator.run(
                 inputs=inputs,
                 phase="plasticity",
                 matrices=None,
